@@ -46,7 +46,7 @@ export default function App() {
         </div>
       </nav>
 
-      <section className="relative overflow-hidden border-b border-border bg-white pt-32 pb-10 md:pt-40 md:pb-12">
+      <section className="relative overflow-hidden bg-white pt-32 pb-8 md:pt-40 md:pb-10">
         <div className="relative mx-auto max-w-7xl px-6">
           <div className="max-w-5xl">
             <Eyebrow className="mb-4">GB wind · day-ahead · January 2026</Eyebrow>
@@ -68,7 +68,7 @@ export default function App() {
         </div>
       </section>
 
-      <section id="surface" className="scroll-mt-20 border-b border-border bg-white pt-8 pb-14 md:pt-10 md:pb-18">
+      <section id="surface" className="scroll-mt-24 border-b border-border bg-white pb-14 md:pb-18">
         <div className="mx-auto max-w-7xl px-6">
           <div className="border border-ink/10 bg-white p-4 shadow-[0_24px_80px_rgba(43,42,42,0.08)] md:p-5">
             <div className="mb-4 border border-ink/8 bg-[#f7f6f2] px-4 py-3">
