@@ -1,11 +1,90 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, FIRST_DAY, LAST_DAY, gw, gwh, pct, hhmm, stamp, dayLabel, type Decision, type Vintage } from './api'
-import { BRAND, Card, Chip, Field, GRID, INK, Signal, Status, Tile, WatchList, axisLine, legendProps, sparseDot, tick, tooltipStyle } from './ui'
+import { BRAND, Card, Chip, Field, GRID, INK, Signal, Status, TipCard, Tile, WatchList, axisLine, legendProps, lineCursor, sparseDot, tick, type TipRow } from './ui'
 
 const sign = (x: number) => (x > 0 ? '+' : x < 0 ? '−' : '')
+const num = (x: unknown) => (typeof x === 'number' ? x : null)
+const range = (r: unknown) => (Array.isArray(r) && r[0] != null ? `${Number(r[0]).toFixed(1)}–${Number(r[1]).toFixed(1)} GW` : '—')
 
-export default function DecisionView() {
+// Day-ahead auction gates on D-1 (UK time = UTC in January). Plan: N2EX 09:50, EPEX about 30 min earlier.
+const GATES = [
+  { t: '09:20', venue: 'EPEX' },
+  { t: '09:50', venue: 'N2EX' },
+]
+const segment = (on: boolean) =>
+  `flex h-10 items-center gap-2 border px-3.5 text-sm font-semibold transition-all ${
+    on ? 'border-brand bg-brand text-white shadow-lg shadow-brand/10' : 'border-border bg-surface text-subtext hover:border-ink/20'
+  }`
+
+function GateSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const custom = !GATES.some((g) => g.t === value)
+  return (
+    <div className="flex flex-wrap gap-2">
+      {GATES.map((g) => (
+        <button key={g.t} type="button" className={segment(value === g.t)} onClick={() => onChange(g.t)}>
+          {g.venue}
+          <span className={`font-medium ${value === g.t ? 'text-white/75' : 'text-subtext/60'}`}>{g.t}</span>
+        </button>
+      ))}
+      <label className={`${segment(custom)} cursor-pointer`} title="Custom gate time (UTC)">
+        <Clock className="h-4 w-4" />
+        <input
+          type="time"
+          step={600}
+          aria-label="Custom gate time (UTC)"
+          value={custom ? value : ''}
+          onChange={(e) => e.target.value && onChange(e.target.value)}
+          className="w-[4.6rem] bg-transparent outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+        />
+      </label>
+    </div>
+  )
+}
+
+function DayPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
+  const shift = (n: number) => {
+    const d = new Date(`${value}T00:00Z`)
+    d.setUTCDate(d.getUTCDate() + n)
+    const s = d.toISOString().slice(0, 10)
+    if (s >= FIRST_DAY && s <= LAST_DAY) onChange(s)
+  }
+  const label = new Date(`${value}T00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).replace(',', '')
+  const arrow = 'flex w-10 items-center justify-center text-subtext transition-colors hover:bg-ink/[0.03] hover:text-ink disabled:pointer-events-none disabled:opacity-30'
+  return (
+    <div className="flex h-10 border border-ink/10 bg-surface">
+      <button type="button" aria-label="Previous delivery day" className={arrow} disabled={value <= FIRST_DAY} onClick={() => shift(-1)}>
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => ref.current?.showPicker?.()}
+        className="relative flex min-w-[11rem] items-center justify-center gap-2 border-x border-ink/10 px-3 text-sm font-semibold text-ink transition-colors hover:bg-ink/[0.03]"
+      >
+        <CalendarDays className="h-4 w-4 text-brand" />
+        {label}
+        <input
+          ref={ref}
+          type="date"
+          tabIndex={-1}
+          aria-hidden
+          value={value}
+          min={FIRST_DAY}
+          max={LAST_DAY}
+          onChange={(e) => e.target.value && onChange(e.target.value)}
+          className="pointer-events-none absolute inset-0 opacity-0"
+        />
+      </button>
+      <button type="button" aria-label="Next delivery day" className={arrow} disabled={value >= LAST_DAY} onClick={() => shift(1)}>
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
+export default memo(function DecisionView() {
   const [date, setDate] = useState('2026-01-15')
   const [gate, setGate] = useState('09:50')
   const [showVintages, setShowVintages] = useState(true)
@@ -77,12 +156,12 @@ export default function DecisionView() {
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
         <Field label="Delivery day">
-          <input type="date" value={date} min={FIRST_DAY} max={LAST_DAY} onChange={(e) => setDate(e.target.value)} />
+          <DayPicker value={date} onChange={setDate} />
         </Field>
-        <Field label="Gate closure (UTC)">
-          <input type="time" value={gate} step={600} onChange={(e) => setGate(e.target.value)} />
+        <Field label="Gate closure · D-1 (UTC)">
+          <GateSelect value={gate} onChange={setGate} />
         </Field>
-        <div className="flex gap-2 pb-2">
+        <div className="flex gap-2 pb-2 lg:ml-auto">
           <Chip active={showVintages} onClick={() => setShowVintages(!showVintages)}>Forecast drift</Chip>
           <Chip active={showActual} onClick={() => setShowActual(!showActual)}>Hindsight actual</Chip>
         </div>
@@ -104,7 +183,25 @@ export default function DecisionView() {
                   <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                   <XAxis dataKey="time" tickFormatter={(v: string) => v.slice(11, 13)} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                   <YAxis tick={tick} axisLine={axisLine} tickLine={false} domain={[0, 'auto']} tickFormatter={(v: number) => v.toFixed(0)} label={{ value: 'GW', angle: -90, position: 'insideLeft', offset: 18, ...tick }} />
-                  <Tooltip {...tooltipStyle} labelFormatter={(l) => `${hhmm(String(l))} UTC`} formatter={(v, n) => [Array.isArray(v) ? `${Number(v[0]).toFixed(1)}–${Number(v[1]).toFixed(1)} GW` : `${Number(v).toFixed(2)} GW`, n]} />
+                  <Tooltip
+                    cursor={lineCursor}
+                    content={(p) => {
+                      const r = p.active ? (p.payload?.[0]?.payload as Record<string, unknown> | undefined) : undefined
+                      if (!r) return null
+                      const fc = num(r.forecast)!, ac = num(r.actual)
+                      const vs = older.map((v) => num(r[v.publishTime])).filter((x): x is number => x != null)
+                      const rows: TipRow[] = [{ label: 'Forecast at gate', value: `${fc.toFixed(2)} GW`, color: BRAND }]
+                      if (showActual && ac != null) rows.push({ label: 'Metered actual', value: `${ac.toFixed(2)} GW`, color: INK, dashed: true }, { label: 'Miss', value: `${sign(fc - ac)}${Math.abs(fc - ac).toFixed(2)} GW` })
+                      rows.push({ label: 'P10–P90', value: range(r.band), color: BRAND, area: true }, { label: 'P5–P95', value: range(r.wide), color: BRAND, area: true, faint: true })
+                      return (
+                        <TipCard
+                          title={`${hhmm(String(r.time))} UTC · ${dayLabel(dec.date)}`}
+                          rows={rows}
+                          foot={vs.length ? `${vs.length} earlier forecasts: ${Math.min(...vs).toFixed(1)}–${Math.max(...vs).toFixed(1)} GW. Last update moved it ${sign(fc - vs[vs.length - 1])}${Math.abs(fc - vs[vs.length - 1]).toFixed(2)} GW.` : undefined}
+                        />
+                      )
+                    }}
+                  />
                   <Legend {...legendProps} />
                   <Area type="monotone" dataKey="wide" name="P5–P95" legendType="none" stroke="none" fill={BRAND} fillOpacity={0.06} isAnimationActive={false} />
                   <Area type="monotone" dataKey="band" name="P10–P90 range" legendType="rect" stroke="none" fill={BRAND} fillOpacity={0.15} isAnimationActive={false} />
@@ -143,4 +240,4 @@ export default function DecisionView() {
       </div>
     </>
   )
-}
+})

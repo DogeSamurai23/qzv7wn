@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, gw, pct, dayLabel, type Accuracy } from './api'
-import { AXIS, BRAND, Card, Chip, GRID, INK, Signal, Status, Tile, WatchList, axisLine, legendProps, tick, tooltipStyle } from './ui'
+import { AXIS, BRAND, Card, Chip, GRID, INK, Signal, Status, TipCard, Tile, WatchList, axisLine, legendProps, lineCursor, simpleTip, tick } from './ui'
 
 const RANGES = [
   { label: 'All horizons', min: 0, max: 66 },
@@ -16,7 +16,7 @@ const barLegend = { ...legendProps, iconType: 'square' as const, iconSize: 8 }
 const barCursor = { fill: INK, fillOpacity: 0.04 }
 const hh = (h: number) => String(h).padStart(2, '0')
 
-export default function AccuracyView() {
+export default memo(function AccuracyView() {
   const [range, setRange] = useState(0)
   const [acc, setAcc] = useState<Accuracy>()
   const [error, setError] = useState<string>()
@@ -75,7 +75,7 @@ export default function AccuracyView() {
                   <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                   <XAxis dataKey="from" tickFormatter={(v: number) => `${v}h`} tick={tick} axisLine={axisLine} tickLine={false} />
                   <YAxis {...yGW()} />
-                  <Tooltip {...tooltipStyle} cursor={barCursor} labelFormatter={(l) => `${l}–${Number(l) + 6} h ahead`} formatter={(v, n) => [fmtGW(v), n]} />
+                  <Tooltip cursor={barCursor} content={simpleTip((l) => `${l}–${Number(l) + 6} h ahead`, fmtGW)} />
                   <Legend {...barLegend} />
                   <Bar dataKey="mae" name="MAE" fill={BRAND} isAnimationActive={false}>
                     {acc.by_horizon.map((b) => <Cell key={b.from} fillOpacity={b.from >= sel.min && b.from < sel.max ? 1 : 0.3} />)}
@@ -95,7 +95,7 @@ export default function AccuracyView() {
                   <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                   <XAxis dataKey="hour" tickFormatter={hh} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                   <YAxis {...yGW()} />
-                  <Tooltip {...tooltipStyle} labelFormatter={(l) => `${hh(Number(l))}:00 UTC`} formatter={(v, n) => [fmtGW(v), n]} />
+                  <Tooltip cursor={lineCursor} content={simpleTip((l) => `${hh(Number(l))}:00 UTC`, fmtGW)} />
                   <Legend {...legendProps} />
                   <Bar dataKey="mae" name="MAE" fill={BRAND} fillOpacity={0.85} legendType="square" isAnimationActive={false} />
                   <Line type="monotone" dataKey="bias" name="Bias" stroke={INK} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
@@ -135,9 +135,9 @@ export default function AccuracyView() {
                 <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                 <XAxis dataKey="from" tickFormatter={(v: number) => `${v / 1000}`} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                 <YAxis tick={tick} axisLine={axisLine} tickLine={false} label={{ value: 'hours', angle: -90, position: 'insideLeft', offset: 18, ...tick }} />
-                <Tooltip {...tooltipStyle} cursor={barCursor} labelFormatter={(l) => `${Number(l) / 1000} to ${(Number(l) + 500) / 1000} GW`} formatter={(v) => [`${v} hours`, 'count']} />
+                <Tooltip cursor={barCursor} content={simpleTip((l) => `Miss ${Number(l) / 1000} to ${(Number(l) + 500) / 1000} GW`, (v) => `${v} h`)} />
                 <ReferenceLine x={0} stroke={AXIS} />
-                <Bar dataKey="count" name="hours" isAnimationActive={false}>
+                <Bar dataKey="count" name="Hours" isAnimationActive={false}>
                   {acc.selected.histogram.map((b) => <Cell key={b.from} fill={b.from >= 0 ? INK : BRAND} fillOpacity={b.from >= 0 ? 0.75 : 0.85} />)}
                 </Bar>
               </BarChart>
@@ -157,7 +157,24 @@ export default function AccuracyView() {
                 <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={(v: string) => v.slice(8)} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                 <YAxis {...yGW(0)} />
-                <Tooltip {...tooltipStyle} cursor={barCursor} labelFormatter={(l) => dayLabel(String(l))} formatter={(v, n) => [fmtGW(v), n]} />
+                <Tooltip
+                  cursor={barCursor}
+                  content={(p) => {
+                    const r = p.active ? (p.payload?.[0]?.payload as (typeof d.by_day)[number] | undefined) : undefined
+                    return r ? (
+                      <TipCard
+                        title={`Delivery ${dayLabel(r.date)}`}
+                        rows={[
+                          { label: 'Average bias', value: `${r.bias > 0 ? '+' : ''}${gw(r.bias, 2)} GW`, color: r.bias >= 0 ? INK : BRAND },
+                          { label: 'MAE', value: `${gw(r.mae, 2)} GW` },
+                          { label: 'Forecast', value: `${Math.round(r.forecast_mwh / 1000)} GWh`, color: BRAND },
+                          { label: 'Metered', value: `${Math.round(r.actual_mwh / 1000)} GWh`, color: INK, dashed: true },
+                        ]}
+                        foot={`${r.forecast_mwh > r.actual_mwh ? 'Short' : 'Long'} ${Math.abs(Math.round((r.forecast_mwh - r.actual_mwh) / 1000))} GWh against the gate-time forecast`}
+                      />
+                    ) : null
+                  }}
+                />
                 <ReferenceLine y={0} stroke={AXIS} />
                 <Bar dataKey="bias" name="bias" isAnimationActive={false}>
                   {d.by_day.map((x) => <Cell key={x.date} fill={x.bias >= 0 ? INK : BRAND} fillOpacity={x.bias >= 0 ? 0.75 : 0.85} />)}
@@ -169,4 +186,4 @@ export default function AccuracyView() {
       </div>
     </>
   )
-}
+})

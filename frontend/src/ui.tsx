@@ -19,12 +19,7 @@ export const legendProps = {
   height: 24,
   wrapperStyle: { fontSize: 8, fontFamily: 'Inter, sans-serif', color: TICK },
 }
-export const tooltipStyle = {
-  contentStyle: { border: `0.8px solid ${INK}1a`, background: '#fff', fontSize: 11, fontFamily: 'Inter, sans-serif', padding: '8px 10px', boxShadow: '0 10px 15px -3px rgba(43,42,42,0.06)' },
-  labelStyle: { color: INK, fontWeight: 600, marginBottom: 4 },
-  itemStyle: { color: '#5a5856', padding: 0 },
-  cursor: { stroke: BRAND, strokeOpacity: 0.5, strokeDasharray: '4 4' },
-}
+export const lineCursor = { stroke: BRAND, strokeOpacity: 0.5, strokeDasharray: '4 4' }
 
 // Hollow dot on every 4th point, as on their charts.
 export const sparseDot = (color: string) => (p: { cx?: number; cy?: number; index?: number; value?: unknown }) =>
@@ -107,3 +102,36 @@ export function Field({ label, children }: { label: string; children: ReactNode 
     </label>
   )
 }
+
+// Chart tooltip in the same card language as the tiles: eyebrow title, swatch + label + value rows, optional footer.
+export type TipRow = { label: string; value: string; color?: string; dashed?: boolean; area?: boolean; faint?: boolean }
+
+export function TipCard({ title, rows, foot }: { title: string; rows: TipRow[]; foot?: ReactNode }) {
+  return (
+    <div className="min-w-[220px] border border-ink/10 bg-white px-3.5 py-3 shadow-xl shadow-ink/[0.08]">
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext">{title}</div>
+      <div className="grid gap-1.5">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center gap-2.5">
+            {r.area ? (
+              <span className="h-2.5 w-3.5 shrink-0" style={{ background: r.color, opacity: r.faint ? 0.12 : 0.3 }} />
+            ) : (
+              <span className="w-3.5 shrink-0 border-t-2" style={{ borderColor: r.color ?? 'transparent', borderStyle: r.dashed ? 'dashed' : 'solid' }} />
+            )}
+            <span className="text-xs text-subtext">{r.label}</span>
+            <span className="ml-auto pl-4 text-sm font-semibold tabular-nums text-ink">{r.value}</span>
+          </div>
+        ))}
+      </div>
+      {foot && <div className="mt-2.5 border-t border-ink/8 pt-2 text-[11px] leading-relaxed text-subtext">{foot}</div>}
+    </div>
+  )
+}
+
+type TipProps = { active?: boolean; label?: unknown; payload?: readonly { name?: unknown; value?: unknown; color?: string; payload?: Record<string, unknown> }[] }
+
+// Generic tooltip for simple charts: one row per series, values formatted by `fmt`.
+export const simpleTip = (title: (label: unknown) => string, fmt: (v: unknown) => string) => (p: TipProps) =>
+  p.active && p.payload?.length ? (
+    <TipCard title={title(p.label)} rows={p.payload.map((it) => ({ label: String(it.name), value: fmt(it.value), color: it.color ?? INK }))} />
+  ) : null
