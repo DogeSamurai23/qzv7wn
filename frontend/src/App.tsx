@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Wind } from 'lucide-react'
 import DecisionView from './DecisionView'
 import AccuracyView from './AccuracyView'
@@ -16,10 +16,18 @@ const secondaryBtn = 'inline-flex items-center justify-center gap-2 text-sm font
 
 export default function App() {
   const [tab, setTabState] = useState<Tab>(() => (location.hash === '#accuracy' ? 'accuracy' : 'decision'))
+  // Two-phase switch copied from reint.ai: old view fades up and out (300 ms), then the new one fades up and in.
+  const [shown, setShown] = useState<Tab>(tab)
+  const [leaving, setLeaving] = useState(false)
+  const timer = useRef<number>(undefined)
   const setTab = (t: Tab, scroll = false) => {
     setTabState(t)
     history.replaceState(null, '', `#${t}`)
     if (scroll) document.getElementById('surface')?.scrollIntoView({ behavior: 'smooth' })
+    clearTimeout(timer.current)
+    if (t === shown) return setLeaving(false)
+    setLeaving(true)
+    timer.current = window.setTimeout(() => (setShown(t), setLeaving(false)), 300)
   }
 
   return (
@@ -73,7 +81,7 @@ export default function App() {
           <div className="border border-ink/10 bg-white p-4 shadow-[0_24px_80px_rgba(43,42,42,0.08)] md:p-5">
             <div className="mb-4 border border-ink/8 bg-[#f7f6f2] px-4 py-3">
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand">Live surface</div>
-              <p className="text-sm font-medium text-ink md:text-base">
+              <p key={tab} className="text-in text-sm font-medium text-ink md:text-base">
                 {tab === 'decision'
                   ? 'Pick a delivery day: see the forecast available at gate closure, its likely range, and what actually happened.'
                   : 'How wrong the forecast was across January, by lead time, hour of day and delivery day.'}
@@ -89,14 +97,23 @@ export default function App() {
                         {t.label}
                       </div>
                       <div className="h-[3px] overflow-hidden rounded-full bg-ink/8">
-                        {tab === t.id && <div className="h-full w-full rounded-full bg-brand" />}
+                        <div className={`h-full rounded-full bg-brand transition-[width] duration-300 ease-out ${tab === t.id ? 'w-full' : 'w-0'}`} />
                       </div>
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="grid gap-3 p-3 md:gap-4 md:p-5">
-                {tab === 'decision' ? <DecisionView /> : <AccuracyView />}
+              {/* Both views stay mounted so a switch is only a class change; the hidden one is out of layout and inert. */}
+              <div className="relative">
+                {TABS.map((t) => (
+                  <div
+                    key={t.id}
+                    inert={t.id !== shown}
+                    className={`grid gap-3 p-3 md:gap-4 md:p-5 ${t.id !== shown ? 'pointer-events-none invisible absolute inset-x-0 top-0' : leaving ? 'panel-out' : 'panel-in'}`}
+                  >
+                    {t.id === 'decision' ? <DecisionView /> : <AccuracyView />}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

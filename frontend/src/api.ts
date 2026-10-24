@@ -32,12 +32,21 @@ export type Accuracy = {
   by_horizon: { from: number; to: number; n: number; mae: number; rmse: number; bias: number; p90_abs: number }[]
 }
 
-async function get<T>(path: string, params: Record<string, string | number>): Promise<T> {
-  const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))
-  const r = await fetch(`${path}?${qs}`)
-  if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.detail ?? `${r.status} ${r.statusText}`)
-  return r.json()
+function get<T>(path: string, params: Record<string, string | number>): Promise<T> {
+  const url = `${path}?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`
+  // The data is a fixed snapshot, so responses never change: cache them for instant tab and date revisits.
+  if (!cache.has(url)) {
+    const p = fetch(url).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.detail ?? `${r.status} ${r.statusText}`)
+      return r.json()
+    })
+    p.catch(() => cache.delete(url))
+    cache.set(url, p)
+  }
+  return cache.get(url) as Promise<T>
 }
+
+const cache = new Map<string, Promise<unknown>>()
 
 export const api = {
   decision: (date: string, gate: string) => get<Decision>('/api/decision', { date, gate }),
