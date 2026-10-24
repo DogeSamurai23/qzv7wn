@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #fcfcfc;
+  --color-surface: #ffffff;
+  --color-card: #fbfbf9;
+  --color-ink: #2b2a2a;
+  --color-subtext: #5a5856;
+  --color-brand: #148937;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+}
+
+/* square corners everywhere, matching the reference site */
+* {
+  border-radius: 0 !important;
+}
+
+input[type="date"],
+input[type="time"] {
+  @apply border border-ink/10 bg-surface px-3 py-2 font-mono text-[12px] text-ink;
+}
