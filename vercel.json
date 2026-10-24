@@ -1,9 +1,17 @@
 {
+  "framework": null,
   "installCommand": "npm --prefix frontend ci",
   "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/index.py": { "includeFiles": "backend/{app,data}/**" }
+    "api/index.py": {
+      "includeFiles": "backend/{app,data}/**"
+    }
   },
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/index" }]
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    }
+  ]
 }
