@@ -14,6 +14,7 @@ def test_decision_uses_last_publish_before_gate():
     assert len(body["hours"]) == 24
     h = body["hours"][0]
     assert h["p10"] < h["forecast"] and h["p90"] > h["p10"]
+    assert h["p5"] <= h["p10"] and h["p95"] >= h["p90"]
     assert body["totals_mwh"]["shortfall"] == body["totals_mwh"]["forecast"] - body["totals_mwh"]["actual"]
     assert body["history"]["last_day"] == "2026-01-14"
 

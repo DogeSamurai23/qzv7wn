@@ -1,6 +1,6 @@
 // Typed client for the three backend endpoints. All power values are MW, energy MWh.
 
-export type Hour = { time: string; forecast: number; p10: number | null; p90: number | null; actual: number | null }
+export type Hour = { time: string; forecast: number; p5: number | null; p10: number | null; p90: number | null; p95: number | null; actual: number | null }
 
 export type Decision = {
   date: string

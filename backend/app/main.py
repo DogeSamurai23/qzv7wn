@@ -54,8 +54,9 @@ def decision(date: str = Query(...), gate: str = Query("09:50")):
     hours = []
     for t, fc in data.forecast_curve(publish, d):
         b = metrics.band(fc, hist) or {"low": None, "high": None}
+        w = metrics.band(fc, hist, 5, 95) or {"low": None, "high": None}
         hours.append({"time": data.iso(t), "forecast": fc, "p10": rnd(b["low"]), "p90": rnd(b["high"]),
-                      "actual": data.ACTUALS.get(t)})
+                      "p5": rnd(w["low"]), "p95": rnd(w["high"]), "actual": data.ACTUALS.get(t)})
     fc_sum = sum(h["forecast"] for h in hours)
     ac = [h["actual"] for h in hours if h["actual"] is not None]
     # ponytail: band totals sum hourly percentiles, which is conservative (errors are correlated within a day).

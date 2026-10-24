@@ -1,4 +1,4 @@
-// Small presentational pieces shared by both views, styled after the reint.ai "Live surface" cards.
+// Presentational pieces shared by both views. Class lists mirror the reint.ai "Live surface" panel markup.
 import type { ReactNode } from 'react'
 
 export const BRAND = '#148937'
@@ -6,86 +6,104 @@ export const INK = '#2b2a2a'
 export const GRID = '#e8e7e3'
 export const AXIS = '#d8d6cf'
 export const TICK = '#7a776e'
+export const DOT_FILL = '#fcfcfc'
 
-export const tick = { fontSize: 10, fill: TICK, fontFamily: 'JetBrains Mono, monospace' }
-export const axisLine = { stroke: AXIS }
+// Chart chrome: 8px ticks, recessive grid, axis lines like their SVGs.
+export const tick = { fontSize: 8, fill: TICK, fontFamily: 'Inter, sans-serif' }
+export const axisLine = { stroke: AXIS, strokeWidth: 1 }
+export const legendProps = {
+  verticalAlign: 'top' as const,
+  align: 'right' as const,
+  iconType: 'plainline' as const,
+  iconSize: 14,
+  height: 24,
+  wrapperStyle: { fontSize: 8, fontFamily: 'Inter, sans-serif', color: TICK },
+}
 export const tooltipStyle = {
-  contentStyle: { border: `1px solid ${INK}1a`, background: '#fff', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', padding: '8px 10px' },
+  contentStyle: { border: `0.8px solid ${INK}1a`, background: '#fff', fontSize: 11, fontFamily: 'Inter, sans-serif', padding: '8px 10px', boxShadow: '0 10px 15px -3px rgba(43,42,42,0.06)' },
   labelStyle: { color: INK, fontWeight: 600, marginBottom: 4 },
   itemStyle: { color: '#5a5856', padding: 0 },
-  cursor: { stroke: INK, strokeOpacity: 0.25, strokeDasharray: '3 3' },
+  cursor: { stroke: BRAND, strokeOpacity: 0.5, strokeDasharray: '4 4' },
 }
+
+// Hollow dot on every 4th point, as on their charts.
+export const sparseDot = (color: string) => (p: { cx?: number; cy?: number; index?: number; value?: unknown }) =>
+  p.index! % 4 === 0 && p.value != null ? (
+    <circle key={p.index} cx={p.cx} cy={p.cy} r={2.5} fill={DOT_FILL} stroke={color} strokeWidth={1.6} />
+  ) : (
+    <g key={p.index} />
+  )
 
 export function Eyebrow({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`text-[11px] font-semibold uppercase tracking-[0.24em] text-brand ${className}`}>{children}</div>
+  return <div className={`text-[11px] font-semibold uppercase tracking-[0.22em] text-brand ${className}`}>{children}</div>
 }
 
-export function Tile({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
+export function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-ink/10 bg-card px-4 py-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext">{label}</div>
-      <div className="mt-1 font-mono text-[22px] font-medium leading-none tracking-tight text-ink">
-        {value}
-        {unit && <span className="ml-1 text-[12px] font-normal text-subtext">{unit}</span>}
-      </div>
-      {sub && <div className="mt-1.5 text-[11px] font-light text-subtext">{sub}</div>}
+    <div className="border border-ink/8 bg-[#fbfbf9] px-2 py-2 md:px-4 md:py-3">
+      <div className="mb-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-subtext md:text-[10px]">{label}</div>
+      <div className="text-sm font-semibold text-ink md:text-lg">{value}</div>
     </div>
   )
 }
 
-export function Card({ title, note, children, className = '' }: { title: string; note?: string; children: ReactNode; className?: string }) {
+export function Card({ eyebrow, title, children, className = '' }: { eyebrow: string; title: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`border border-ink/10 bg-surface p-4 ${className}`}>
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h3>
+    <div className={`border border-ink/8 bg-[#fbfbf9] p-4 ${className}`}>
+      <div className="mb-4">
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-subtext">{eyebrow}</div>
+        <div className="text-lg font-semibold text-ink">{title}</div>
       </div>
-      <div className="mt-3">{children}</div>
-      {note && <p className="mt-3 border-t border-ink/10 pt-3 text-[12px] font-light leading-relaxed text-subtext">{note}</p>}
-    </section>
-  )
-}
-
-export function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${
-        active ? 'border-brand text-brand' : 'border-ink/10 text-subtext hover:border-ink/30'
-      }`}
-    >
       {children}
-    </button>
+    </div>
   )
 }
 
-export function Signal({ title, children }: { title: string; children: ReactNode }) {
+// Small square chips from the panel's top row: neutral, or brand when active.
+export function Chip({ active, onClick, children }: { active?: boolean; onClick?: () => void; children: ReactNode }) {
+  const cls = `border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+    active ? 'border-brand/20 bg-brand/[0.05] text-brand' : 'border-ink/8 bg-[#fbfbf9] text-subtext'
+  }`
+  return onClick ? <button type="button" onClick={onClick} className={`${cls} ${active ? '' : 'hover:border-ink/20'}`}>{children}</button> : <span className={cls}>{children}</span>
+}
+
+export function Signal({ label, title, children }: { label: string; title: string; children: ReactNode }) {
   return (
-    <section className="border border-brand/20 bg-brand/[0.05] p-4">
-      <Eyebrow>{title}</Eyebrow>
-      <div className="mt-2 space-y-2 text-[13px] leading-relaxed text-ink">{children}</div>
-    </section>
+    <div className="border border-brand/20 bg-brand/[0.05] px-4 py-4">
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand">{label}</div>
+      <div className="mb-2 text-base font-semibold text-ink">{title}</div>
+      <div className="space-y-2 text-sm leading-relaxed text-subtext">{children}</div>
+    </div>
   )
 }
 
-export function WatchList({ items }: { items: { label: string; value: string }[] }) {
+export function WatchList({ items }: { items: ReactNode[] }) {
   return (
-    <section className="bg-ink p-4 text-white">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70">Watch list</div>
-      <ul className="mt-3 space-y-2.5">
-        {items.map((it) => (
-          <li key={it.label} className="flex items-start gap-3 text-[12px]">
-            <span className="mt-1.5 block h-2 w-2 shrink-0 bg-brand" />
-            <span className="font-light text-white/80">{it.label}</span>
-            <span className="ml-auto whitespace-nowrap font-mono text-white">{it.value}</span>
-          </li>
+    <div className="border border-ink/8 bg-ink px-4 py-4 text-white">
+      <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand">Watch list</div>
+      <div className="grid gap-3">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-start gap-3">
+            <div className="mt-1.5 h-2 w-2 shrink-0 bg-brand" />
+            <p className="text-sm leading-relaxed text-white/78">{it}</p>
+          </div>
         ))}
-      </ul>
-    </section>
+      </div>
+    </div>
   )
 }
 
 export function Status({ error, loading }: { error?: string; loading?: boolean }) {
-  if (error) return <div className="border border-red-800/20 bg-red-50 px-4 py-3 text-[12px] text-red-900">{error}</div>
-  if (loading) return <div className="px-1 py-3 text-[12px] font-light text-subtext">Loading…</div>
+  if (error) return <div className="border border-red-800/20 bg-red-50 px-4 py-3 text-sm text-red-900">{error}</div>
+  if (loading) return <div className="px-1 py-3 text-sm font-light text-subtext">Loading…</div>
   return null
+}
+
+export function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-subtext">{label}</div>
+      {children}
+    </label>
+  )
 }
