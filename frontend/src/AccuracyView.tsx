@@ -75,7 +75,7 @@ export default memo(function AccuracyView() {
                   <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                   <XAxis dataKey="from" tickFormatter={(v: number) => `${v}h`} tick={tick} axisLine={axisLine} tickLine={false} />
                   <YAxis {...yGW()} />
-                  <Tooltip cursor={barCursor} content={simpleTip((l) => `${l}–${Number(l) + 6} h ahead`, fmtGW)} />
+                  <Tooltip cursor={barCursor} content={simpleTip((l) => `${l}–${Number(l) + 6} h ahead`, fmtGW, ['MAE', 'Bias'])} />
                   <Legend {...barLegend} />
                   <Bar dataKey="mae" name="MAE" fill={BRAND} isAnimationActive={false}>
                     {acc.by_horizon.map((b) => <Cell key={b.from} fillOpacity={b.from >= sel.min && b.from < sel.max ? 1 : 0.3} />)}
@@ -95,7 +95,7 @@ export default memo(function AccuracyView() {
                   <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                   <XAxis dataKey="hour" tickFormatter={hh} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                   <YAxis {...yGW()} />
-                  <Tooltip cursor={lineCursor} content={simpleTip((l) => `${hh(Number(l))}:00 UTC`, fmtGW)} />
+                  <Tooltip cursor={lineCursor} content={simpleTip((l) => `${hh(Number(l))}:00 UTC`, fmtGW, ['MAE'])} />
                   <Legend {...legendProps} />
                   <Bar dataKey="mae" name="MAE" fill={BRAND} fillOpacity={0.85} legendType="square" isAnimationActive={false} />
                   <Line type="monotone" dataKey="bias" name="Bias" stroke={INK} strokeWidth={2.2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
@@ -135,7 +135,15 @@ export default memo(function AccuracyView() {
                 <CartesianGrid stroke={GRID} strokeWidth={0.8} vertical={false} />
                 <XAxis dataKey="from" tickFormatter={(v: number) => `${v / 1000}`} tick={tick} axisLine={axisLine} tickLine={false} interval={3} />
                 <YAxis tick={tick} axisLine={axisLine} tickLine={false} label={{ value: 'hours', angle: -90, position: 'insideLeft', offset: 18, ...tick }} />
-                <Tooltip cursor={barCursor} content={simpleTip((l) => `Miss ${Number(l) / 1000} to ${(Number(l) + 500) / 1000} GW`, (v) => `${v} h`)} />
+                <Tooltip cursor={barCursor} content={(p) => {
+                    const b = p.active ? (p.payload?.[0]?.payload as (typeof acc.selected.histogram)[number] | undefined) : undefined
+                    return b ? (
+                      <TipCard
+                        title={`Miss ${b.from / 1000} to ${b.to / 1000} GW`}
+                        rows={[{ label: b.from >= 0 ? 'Hours too high' : 'Hours too low', value: b.count.toLocaleString(), color: b.from >= 0 ? INK : BRAND, bar: true }]}
+                      />
+                    ) : null
+                  }} />
                 <ReferenceLine x={0} stroke={AXIS} />
                 <Bar dataKey="count" name="Hours" isAnimationActive={false}>
                   {acc.selected.histogram.map((b) => <Cell key={b.from} fill={b.from >= 0 ? INK : BRAND} fillOpacity={b.from >= 0 ? 0.75 : 0.85} />)}
@@ -144,8 +152,8 @@ export default memo(function AccuracyView() {
             </ResponsiveContainer>
           </div>
           <div className="mt-2 flex flex-wrap gap-4 text-[8px] text-[#7a776e]">
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-brand" /> Under-forecast</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-ink/75" /> Over-forecast</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-brand" /> Forecast too low</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-ink/75" /> Forecast too high</span>
             <span className="ml-auto">x: forecast − metered, GW · median miss {gw(acc.selected.p50_abs)} GW · P90 {gw(acc.selected.p90_abs)} GW</span>
           </div>
         </Card>
@@ -165,10 +173,10 @@ export default memo(function AccuracyView() {
                       <TipCard
                         title={`Delivery ${dayLabel(r.date)}`}
                         rows={[
-                          { label: 'Average bias', value: `${r.bias > 0 ? '+' : ''}${gw(r.bias, 2)} GW`, color: r.bias >= 0 ? INK : BRAND },
-                          { label: 'MAE', value: `${gw(r.mae, 2)} GW` },
-                          { label: 'Forecast', value: `${Math.round(r.forecast_mwh / 1000)} GWh`, color: BRAND },
-                          { label: 'Metered', value: `${Math.round(r.actual_mwh / 1000)} GWh`, color: INK, dashed: true },
+                          { label: 'Bias (average lean)', value: `${r.bias > 0 ? '+' : ''}${gw(r.bias, 2)} GW`, color: r.bias >= 0 ? INK : BRAND, bar: true },
+                          { label: 'MAE (typical miss)', value: `${gw(r.mae, 2)} GW` },
+                          { label: 'Forecast energy', value: `${Math.round(r.forecast_mwh / 1000)} GWh` },
+                          { label: 'Metered energy', value: `${Math.round(r.actual_mwh / 1000)} GWh` },
                         ]}
                         foot={`${r.forecast_mwh > r.actual_mwh ? 'Short' : 'Long'} ${Math.abs(Math.round((r.forecast_mwh - r.actual_mwh) / 1000))} GWh against the gate-time forecast`}
                       />
@@ -181,6 +189,11 @@ export default memo(function AccuracyView() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-[8px] text-[#7a776e]">
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-ink/75" /> Forecast too high</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 bg-brand" /> Forecast too low</span>
+            <span className="ml-auto">bar = average of forecast − metered over the day's 24 hours</span>
           </div>
         </Card>
       </div>

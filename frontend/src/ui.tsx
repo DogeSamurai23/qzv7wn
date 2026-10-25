@@ -104,7 +104,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 // Chart tooltip in the same card language as the tiles: eyebrow title, swatch + label + value rows, optional footer.
-export type TipRow = { label: string; value: string; color?: string; dashed?: boolean; area?: boolean; faint?: boolean }
+// Swatch matches the mark: bar = square, area = pale square, otherwise a line (dashed if needed); no color = no swatch.
+export type TipRow = { label: string; value: string; color?: string; dashed?: boolean; area?: boolean; faint?: boolean; bar?: boolean }
 
 export function TipCard({ title, rows, foot }: { title: string; rows: TipRow[]; foot?: ReactNode }) {
   return (
@@ -113,7 +114,9 @@ export function TipCard({ title, rows, foot }: { title: string; rows: TipRow[]; 
       <div className="grid gap-1.5">
         {rows.map((r) => (
           <div key={r.label} className="flex items-center gap-2.5">
-            {r.area ? (
+            {r.bar ? (
+              <span className="h-2.5 w-3.5 shrink-0" style={{ background: r.color, opacity: 0.8 }} />
+            ) : r.area ? (
               <span className="h-2.5 w-3.5 shrink-0" style={{ background: r.color, opacity: r.faint ? 0.12 : 0.3 }} />
             ) : (
               <span className="w-3.5 shrink-0 border-t-2" style={{ borderColor: r.color ?? 'transparent', borderStyle: r.dashed ? 'dashed' : 'solid' }} />
@@ -131,7 +134,8 @@ export function TipCard({ title, rows, foot }: { title: string; rows: TipRow[]; 
 type TipProps = { active?: boolean; label?: unknown; payload?: readonly { name?: unknown; value?: unknown; color?: string; payload?: Record<string, unknown> }[] }
 
 // Generic tooltip for simple charts: one row per series, values formatted by `fmt`.
-export const simpleTip = (title: (label: unknown) => string, fmt: (v: unknown) => string) => (p: TipProps) =>
+// Series named in `bars` get a square swatch; the rest get a line swatch.
+export const simpleTip = (title: (label: unknown) => string, fmt: (v: unknown) => string, bars: string[] = []) => (p: TipProps) =>
   p.active && p.payload?.length ? (
-    <TipCard title={title(p.label)} rows={p.payload.map((it) => ({ label: String(it.name), value: fmt(it.value), color: it.color ?? INK }))} />
+    <TipCard title={title(p.label)} rows={p.payload.map((it) => ({ label: String(it.name), value: fmt(it.value), color: it.color ?? INK, bar: bars.includes(String(it.name)) }))} />
   ) : null
